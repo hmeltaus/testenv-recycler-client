@@ -1,0 +1,14 @@
+{
+  "name": "testenv-recycler",
+  "version": "0.0.1",
+  "description": "Client for testenv-recycler",
+  "main": "index.js",
+  "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
+  "devDependencies": {
+    "prettier": "2.1.2"
+  }
+}
