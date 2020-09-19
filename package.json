@@ -1,10 +1,11 @@
 {
   "name": "testenv-recycler",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "Client for testenv-recycler",
   "files": [
     "dist"
   ],
+  "types": "./dist/index.d.ts",
   "license": "MIT",
   "publishConfig": {
     "access": "public",
