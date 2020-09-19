@@ -1,10 +1,9 @@
-//module.exports =
-const https = require("https")
+import { request } from "https"
 
-const get = async (props, path) => {
-  return new Promise((resolve, reject) => {
+const get = async (props: any, path: string): Promise<any> =>
+  new Promise((resolve, reject) => {
     let body = ""
-    const req = https.request(
+    const req = request(
       {
         hostname: props.hostname,
         method: "GET",
@@ -27,12 +26,12 @@ const get = async (props, path) => {
     req.on("error", (e) => reject(e))
     req.end()
   })
-}
 
-const del = async (props, path) => {
+
+const del = async (props: any, path: string) => {
   return new Promise((resolve, reject) => {
     let body = ""
-    const req = https.request(
+    const req = request(
       {
         hostname: props.hostname,
         method: "DELETE",
@@ -57,11 +56,11 @@ const del = async (props, path) => {
   })
 }
 
-const post = async (props, path, payload) => {
+const post = async (props: any, path: string, payload: any) => {
   const payloadString = JSON.stringify(payload)
   return new Promise((resolve, reject) => {
     let body = ""
-    const req = https.request(
+    const req = request(
       {
         hostname: props.hostname,
         method: "POST",
@@ -88,16 +87,19 @@ const post = async (props, path, payload) => {
   })
 }
 
-const sleep = async (milliseconds) =>
+const sleep = async (milliseconds: number) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds))
 
 export default class Recycler {
-  constructor(props) {
+
+  private readonly props: any;
+
+  constructor(props: any) {
     this.props = props
   }
 
-  createReservation = async ({ type, count }) => {
-    let reservation = await post(this.props, "/reservations", { type, count })
+  createReservation = async ({ type, count }: any) => {
+    let reservation: any = await post(this.props, "/reservations", { type, count })
     while (reservation.status === "pending") {
       console.log(reservation.status)
       await sleep(2000)
@@ -113,6 +115,6 @@ export default class Recycler {
     return reservation
   }
 
-  releaseReservation = async (reservationId) =>
+  releaseReservation = async (reservationId: string) =>
     del(this.props, `/reservations/${reservationId}`)
 }
