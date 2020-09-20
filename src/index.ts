@@ -1,19 +1,47 @@
 import { request } from "https"
 
-const get = async (props: any, path: string): Promise<any> =>
+export interface AccountSlot {
+  slot: string
+  accountId: string | null
+  status: "pending" | "ready" | "failed" | string
+}
+
+export interface ReservationCredentials {
+  accessKeyId: string
+  secretAccessKey: string
+  sessionToken?: string
+}
+
+export interface Reservation {
+  id: string
+  created: number
+  expires: number
+  status: "pending" | "ready" | "failed" | "expired" | string
+  accounts: AccountSlot[]
+  credentials: ReservationCredentials
+}
+
+const get = async (
+  props: RecyclerProps,
+  token: string | null,
+  path: string,
+): Promise<any> =>
   new Promise((resolve, reject) => {
     let body = ""
+    const headers: any = {
+      "Content-Type": "application/json",
+    }
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`
+    }
+
     const req = request(
       {
         hostname: props.hostname,
         method: "GET",
         path: `${props.basePath}${path}`,
-        headers: {
-          Authorization: Buffer.from(
-            `${props.clientId}:${props.clientPassword}`,
-          ).toString("base64"),
-          "Content-Type": "application/json",
-        },
+        headers,
       },
       (res) => {
         res.on("data", (chunk) => {
@@ -27,21 +55,23 @@ const get = async (props: any, path: string): Promise<any> =>
     req.end()
   })
 
-
-const del = async (props: any, path: string) => {
-  return new Promise((resolve, reject) => {
+const del = async (props: RecyclerProps, token: string | null, path: string) =>
+  new Promise((resolve, reject) => {
     let body = ""
+
+    const headers: any = {
+      "Content-Type": "application/json",
+    }
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`
+    }
     const req = request(
       {
         hostname: props.hostname,
         method: "DELETE",
         path: `${props.basePath}${path}`,
-        headers: {
-          Authorization: Buffer.from(
-            `${props.clientId}:${props.clientPassword}`,
-          ).toString("base64"),
-          "Content-Type": "application/json",
-        },
+        headers,
       },
       (res) => {
         res.on("data", (chunk) => {
@@ -54,24 +84,32 @@ const del = async (props: any, path: string) => {
     req.on("error", (e) => reject(e))
     req.end()
   })
-}
 
-const post = async (props: any, path: string, payload: any) => {
-  const payloadString = JSON.stringify(payload)
-  return new Promise((resolve, reject) => {
+const post = async (
+  props: RecyclerProps,
+  token: string | null,
+  path: string,
+  payload: any,
+) =>
+  new Promise((resolve, reject) => {
+    const payloadString = JSON.stringify(payload)
     let body = ""
+
+    const headers: any = {
+      "Content-Type": "application/json",
+      "Content-Length": payloadString.length,
+    }
+
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`
+    }
+
     const req = request(
       {
         hostname: props.hostname,
         method: "POST",
         path: `${props.basePath}${path}`,
-        headers: {
-          Authorization: Buffer.from(
-            `${props.clientId}:${props.clientPassword}`,
-          ).toString("base64"),
-          "Content-Length": payloadString.length,
-          "Content-Type": "application/json",
-        },
+        headers,
       },
       (res) => {
         res.on("data", (chunk) => {
@@ -85,36 +123,70 @@ const post = async (props: any, path: string, payload: any) => {
     req.write(payloadString)
     req.end()
   })
-}
 
 const sleep = async (milliseconds: number) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds))
 
-export default class Recycler {
+export interface RecyclerProps {
+  hostname: string
+  basePath?: string
+  username: string
+  password: string
+}
 
-  private readonly props: any;
+export interface CreateReservationInput {
+  count: number
+  name: string
+}
 
-  constructor(props: any) {
+export class Recycler {
+  private readonly props: RecyclerProps
+  private token: string | null = null
+
+  constructor(props: RecyclerProps) {
     this.props = props
   }
 
-  createReservation = async ({ type, count }: any) => {
-    let reservation: any = await post(this.props, "/reservations", { type, count })
+  login = async (): Promise<void> => {
+    console.log("Login")
+    const { token }: any = await post(this.props, null, "/login", {
+      username: this.props.username,
+      password: this.props.password,
+    })
+
+    this.token = token
+  }
+
+  createReservation = async ({
+    name,
+    count,
+  }: CreateReservationInput): Promise<Reservation> => {
+    console.log(`Create reservation with count: ${count}`)
+    let reservation: any = await post(this.props, this.token, "/reservations", {
+      count,
+      name,
+    })
+
+    console.log(`Reservation created successfully with id: ${reservation.id}`)
+
     while (reservation.status === "pending") {
-      console.log(reservation.status)
       await sleep(2000)
-      console.log("Waiting...")
-      reservation = await get(this.props, `/reservations/${reservation.id}`)
+      console.log("Reservation not yet ready")
+      reservation = await get(
+        this.props,
+        this.token,
+        `/reservations/${reservation.id}`,
+      )
     }
 
-    console.log(JSON.stringify(reservation))
     if (reservation.status !== "ready") {
       throw new Error(`Reservation could not be fulfilled`)
     }
 
+    console.log(`Reservation ready`)
     return reservation
   }
 
   releaseReservation = async (reservationId: string) =>
-    del(this.props, `/reservations/${reservationId}`)
+    del(this.props, this.token, `/reservations/${reservationId}`)
 }
