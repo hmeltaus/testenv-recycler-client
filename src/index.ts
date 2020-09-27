@@ -128,6 +128,7 @@ const sleep = async (milliseconds: number) =>
   new Promise((resolve) => setTimeout(resolve, milliseconds))
 
 export interface RecyclerProps {
+  name: string
   hostname: string
   basePath?: string
   username: string
@@ -147,8 +148,12 @@ export class Recycler {
     this.props = props
   }
 
+  private log = (msg: string): void => {
+    console.log(`${this.props.name} - ${msg}`)
+  }
+
   login = async (): Promise<void> => {
-    console.log("Login")
+    this.log("Login")
     const { token }: any = await post(this.props, null, "/login", {
       username: this.props.username,
       password: this.props.password,
@@ -161,17 +166,17 @@ export class Recycler {
     name,
     count,
   }: CreateReservationInput): Promise<Reservation> => {
-    console.log(`Create reservation with count: ${count}`)
-    let reservation: any = await post(this.props, this.token, "/reservations", {
+    this.log(`Create reservation with count: ${count}`)
+    let reservation = (await post(this.props, this.token, "/reservations", {
       count,
       name,
-    })
+    })) as Reservation
 
-    console.log(`Reservation created successfully with id: ${reservation.id}`)
+    this.log(`Reservation created successfully with id: ${reservation.id}`)
 
     while (reservation.status === "pending") {
       await sleep(2000)
-      console.log("Reservation not yet ready")
+      this.log("Reservation not yet ready")
       reservation = await get(
         this.props,
         this.token,
@@ -183,7 +188,11 @@ export class Recycler {
       throw new Error(`Reservation could not be fulfilled`)
     }
 
-    console.log(`Reservation ready`)
+    this.log(
+      `Reservation ready with accounts: ${reservation.accounts
+        .map((a) => a.accountId)
+        .join(", ")}`,
+    )
     return reservation
   }
 
