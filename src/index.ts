@@ -1,24 +1,24 @@
 import { request } from "https"
 
-export interface AccountSlot {
-  slot: string
-  accountId: string | null
-  status: "pending" | "ready" | "failed" | string
-}
-
-export interface ReservationCredentials {
+export interface Credentials {
   accessKeyId: string
   secretAccessKey: string
   sessionToken?: string
+  expiration: Date
+}
+
+export interface Account {
+    id: string
 }
 
 export interface Reservation {
-  id: string
-  created: number
-  expires: number
-  status: "pending" | "ready" | "failed" | "expired" | string
-  accounts: AccountSlot[]
-  credentials: ReservationCredentials
+    id: string
+    timestamp: number
+    accountCount: number
+    name: string
+    ready: boolean
+    accounts: ReadonlyArray<Account>
+    credentials?: Credentials
 }
 
 const get = async (
@@ -40,7 +40,7 @@ const get = async (
       {
         hostname: props.hostname,
         method: "GET",
-        path: `${props.basePath}${path}`,
+        path,
         headers,
       },
       (res) => {
@@ -70,7 +70,7 @@ const del = async (props: RecyclerProps, token: string | null, path: string) =>
       {
         hostname: props.hostname,
         method: "DELETE",
-        path: `${props.basePath}${path}`,
+        path,
         headers,
       },
       (res) => {
@@ -108,7 +108,7 @@ const post = async (
       {
         hostname: props.hostname,
         method: "POST",
-        path: `${props.basePath}${path}`,
+        path,
         headers,
       },
       (res) => {
@@ -130,7 +130,6 @@ const sleep = async (milliseconds: number) =>
 export interface RecyclerProps {
   name: string
   hostname: string
-  basePath?: string
   username: string
   password: string
 }
@@ -174,28 +173,40 @@ export class Recycler {
 
     this.log(`Reservation created successfully with id: ${reservation.id}`)
 
-    while (reservation.status === "pending") {
+    while (!reservation.ready) {
       await sleep(2000)
       this.log("Reservation not yet ready")
-      reservation = await get(
-        this.props,
-        this.token,
-        `/reservations/${reservation.id}`,
-      )
-    }
 
-    if (reservation.status !== "ready") {
-      throw new Error(`Reservation could not be fulfilled`)
+      try {
+          reservation = await get(
+            this.props,
+            this.token,
+            `/reservations/${reservation.id}`,
+          )
+      } catch (e) {
+          this.log(`Reservation could not be fulfilled: ${e}`)
+      }
     }
 
     this.log(
       `Reservation ready with accounts: ${reservation.accounts
-        .map((a) => a.accountId)
+        .map((a) => a.id)
         .join(", ")}`,
     )
-    return reservation
+
+    const credentials = reservation.credentials as Credentials
+
+    return {
+        ...reservation,
+        credentials: {
+            ...credentials,
+            expiration: new Date(credentials.expiration)
+        }
+    }
   }
 
-  releaseReservation = async (reservationId: string) =>
-    del(this.props, this.token, `/reservations/${reservationId}`)
+  releaseReservation = async (reservationId: string) => {
+    this.log(`Release reservation ${reservationId}`)
+    await del(this.props, this.token, `/reservations/${reservationId}`)
+  }
 }
