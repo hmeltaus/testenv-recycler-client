@@ -44,10 +44,15 @@ const get = async (
         headers,
       },
       (res) => {
+        if (res.statusCode !== 200) {
+            console.log(`Request failed with http status: ${res.statusCode}`)
+        }
+
+        const onComplete = (res.statusCode === 200) ? resolve : reject
         res.on("data", (chunk) => {
           body += chunk
         })
-        res.on("end", () => resolve(JSON.parse(body)))
+        res.on("end", () => onComplete(JSON.parse(body)))
       },
     )
 
@@ -74,10 +79,15 @@ const del = async (props: RecyclerProps, token: string | null, path: string) =>
         headers,
       },
       (res) => {
+        if (res.statusCode !== 200) {
+          console.log(`Request failed with http status: ${res.statusCode}`)
+        }
+
+        const onComplete = (res.statusCode === 200) ? resolve : reject
         res.on("data", (chunk) => {
           body += chunk
         })
-        res.on("end", () => resolve(JSON.parse(body)))
+        res.on("end", () => onComplete(JSON.parse(body)))
       },
     )
 
@@ -112,10 +122,15 @@ const post = async (
         headers,
       },
       (res) => {
+        if (res.statusCode !== 200) {
+          console.log(`Request failed with http status: ${res.statusCode}`)
+        }
+
+        const onComplete = (res.statusCode === 200) ? resolve : reject
         res.on("data", (chunk) => {
           body += chunk
         })
-        res.on("end", () => resolve(JSON.parse(body)))
+        res.on("end", () => onComplete(JSON.parse(body)))
       },
     )
 
