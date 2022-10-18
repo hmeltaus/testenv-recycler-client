@@ -155,6 +155,7 @@ export interface CreateReservationInput {
 }
 
 export class Recycler {
+  private readonly maxWaitTimeInMillis = 1000 * 60 * 60 // 1 hour
   private readonly props: RecyclerProps
   private token: string | null = null
 
@@ -180,6 +181,8 @@ export class Recycler {
     name,
     count,
   }: CreateReservationInput): Promise<Reservation> => {
+    const timestamp = Date.now()
+
     this.log(`Create reservation with count: ${count}`)
     let reservation = (await post(this.props, this.token, "/reservations", {
       count,
@@ -192,6 +195,10 @@ export class Recycler {
       await sleep(2000)
       this.log("Reservation not yet ready")
 
+      if (Date.now() + timestamp > this.maxWaitTimeInMillis) {
+          throw new Error(`Max wait time ${this.maxWaitTimeInMillis}ms exceeded`)
+      }
+
       try {
           reservation = await get(
             this.props,
@@ -200,6 +207,7 @@ export class Recycler {
           )
       } catch (e) {
           this.log(`Reservation could not be fulfilled: ${e}`)
+          throw e
       }
     }
 
