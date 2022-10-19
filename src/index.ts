@@ -195,7 +195,7 @@ export class Recycler {
       await sleep(2000)
       this.log("Reservation not yet ready")
 
-      if (Date.now() + timestamp > this.maxWaitTimeInMillis) {
+      if (Date.now() - timestamp > this.maxWaitTimeInMillis) {
           throw new Error(`Max wait time ${this.maxWaitTimeInMillis}ms exceeded`)
       }
 
